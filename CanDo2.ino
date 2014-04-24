@@ -17,12 +17,14 @@
 #define VERBOSE      (1)
 
 
-#define LEFT_CENTER  (91)  // this will be tuned to your individual servo
-#define RIGHT_CENTER (91)  // this will be tuned to your individual servo
+#define LEFT_CENTER  (89)  // this will be tuned to your individual servo
+#define RIGHT_CENTER (89)  // this will be tuned to your individual servo
 
+#define FORWARD_SPEED (5)
+#define TURN_SPEED    (6)
 
 // number of sensors
-#define NUM_INPUTS   (5)
+#define NUM_INPUTS    (5)
 // sensor input names
 #define EYE_FAR_LEFT  (0)
 #define EYE_LEFT      (1)
@@ -308,14 +310,14 @@ void follow() {
   
   look();
   
-  if(all_eyes_see_white()) {
+  /*if(all_eyes_see_white()) {
     // we have left the track!  back up!
     forward = -4;
     turn = 0;
-  } else if(all_eyes_see_black()) {
+  } elseif(all_eyes_see_black()) {
     // end of line.  stop!
     victory();
-  } else {
+  } else*/ {
     // follow line
     // go forward...
     forward = 7;
@@ -401,7 +403,7 @@ void victory() {
   int state=HIGH;
   
   while(1) {
-    wait(200);
+    wait(100);
     digitalWrite(LED_PIN,state);
     state = ( state == HIGH ) ? LOW : HIGH;
   }
