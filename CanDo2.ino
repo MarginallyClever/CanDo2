@@ -6,72 +6,62 @@
 // please see http://www.github.com/MarginallyClever/CanDo for more information.
 
 
-
 //------------------------------------------------------------------------------
-// DEFINES
+// DEFINES - giving human-readable names to constants
 //------------------------------------------------------------------------------
 
 
-
-// 0,1, or 2.  each produces more output than the one below.
+// Change this to 0,1, or 2.  Each produces more output than the one before.
+// All output is in the Arduino Serial Window
 #define VERBOSE      (1)
 
 
-#define LEFT_CENTER  (89)  // this will be tuned to your individual servo
-#define RIGHT_CENTER (89)  // this will be tuned to your individual servo
+// The value at which each servo does not move.
+// This must be tuned to your individual servo.
+#define LEFT_NO_MOVE  (89)
+#define RIGHT_NO_MOVE (89)
 
-#define FORWARD_SPEED (5)
-#define TURN_SPEED    (6)
+#define FORWARD_SPEED (7)
+#define TURN_SPEED    (5)
 
-// number of sensors
-#define NUM_INPUTS    (5)
-// sensor input names
+#define NUM_EYES      (5)
 #define EYE_FAR_LEFT  (0)
 #define EYE_LEFT      (1)
 #define EYE_MIDDLE    (2)
 #define EYE_RIGHT     (3)
 #define EYE_FAR_RIGHT (4)
 
-#define LED_PIN      (13)
+#define LEFT_MOTOR_PIN  (6)
+#define RIGHT_MOTOR_PIN (7)
+#define LED_PIN         (13)
 
-// what are we doing right now?
-#define MODE_FOLLOW  (1)
-#define MODE_EXPLORE (2)
-#define MODE_SOLVE   (3)
-
+#define WAIT_TIME   (3000)
 
 
 //------------------------------------------------------------------------------
-// INCLUDES
+// INCLUDES - use free code given to us by Arduino ppl
 //------------------------------------------------------------------------------
-
 
 
 #include <Servo.h>
 
 
-
 //------------------------------------------------------------------------------
-// GLOBALS
+// GLOBALS - variables used all over the program
 //------------------------------------------------------------------------------
-
 
 
 Servo left, right;
 
-int inputs[NUM_INPUTS];
-long avg_white[NUM_INPUTS];
-long avg_black[NUM_INPUTS];
-long cutoff[NUM_INPUTS];
-int samples;
-int mode=0;
-
+int inputs[NUM_EYES];
+long avg_white[NUM_EYES];
+long avg_black[NUM_EYES];
+long cutoff[NUM_EYES];
 
 
 //------------------------------------------------------------------------------
 // METHODS
 //------------------------------------------------------------------------------
-
 
 
 void setup() {
@@ -82,70 +72,79 @@ void setup() {
   Serial.println(F("START"));
   pinMode(LED_PIN,OUTPUT);
 
-  // attach servos
-  left.attach(6);
-  right.attach(5);
+  // the lighting conditions are different in every room.
+  // when the robot turns on, give the user 3 seconds to 
+  // put the robot's eyes over the white surface and study
+  // what white looks like in this light for one second.
+  // The LED will turn on while it is studying.
+  study_white();
   
-  steer(0,0);
+  // After that, give the user 3 seconds to 
+  // put the robot's eyes over the black surface and study
+  // what white looks like in this light for one second.
+  // The LED will turn on while it is studying.
+  study_black();
 
+  // now that the robot knows what white and black looks like,
+  // we can explain the difference.  This takes almost no time.
+  learn_difference();
+
+  setup_wheels();
+  
+  // Give the user another 3 seconds to put the robot at
+  // the start of the line.
 #if VERBOSE > 0
-  Serial.println(F("Move me so I can see only white..."));
+  Serial.println(F("Move me to the start of the line..."));
 #endif
   wait(3000);  // give user a moment to place robot
-
-  sample_white();
-  
-#if VERBOSE > 0
-  Serial.println(F("Move me so I can see only black..."));
-#endif
-  wait(3000);  // give user a moment to place robot
-
-  sample_black();
-
-  setup_cutoffs();
-  
-  wait(3000);  // give user a moment to place robot
-  
-#if VERBOSE > 0
-  Serial.println(F("Move me to the start of the maze..."));
-#endif
-  wait(3000);  // give user a moment to place robot
-  
-  mode = MODE_FOLLOW;
-  // mode = MODE_EXPLORE;
 }
 
 
 //------------------------------------------------------------------------------
-void sample_white() {
+void setup_wheels() {
+  // attach servos
+  left.attach(LEFT_MOTOR_PIN);
+  right.attach(RIGHT_MOTOR_PIN);
+  
+  // make sure we aren't moving.
+  steer(0,0);
+}
+
+
+//------------------------------------------------------------------------------
+// average the color white that each eye sees during the next 2 seconds.
+void study_white() {
   int i;
 
-  // give user a moment to place robot on white
-  wait(3000);
+#if VERBOSE > 0
+  Serial.println(F("Move me so I can see only white..."));
+#endif
+  wait(WAIT_TIME);  // give user a moment to place robot
 
   digitalWrite(LED_PIN,HIGH);  // turn on light
 
 #if VERBOSE > 0
   Serial.println(F("Sampling white..."));
 #endif
-  memset(avg_white,0,sizeof(int)*NUM_INPUTS);
-  samples=0;
+  memset(avg_white,0,sizeof(int)*NUM_EYES);
+  int samples=0;
   long start=millis();
   while(millis()-start < 2000) {
     look();
     samples++;
-    for(i=0;i<NUM_INPUTS;++i) {
+    for(i=0;i<NUM_EYES;++i) {
       avg_white[i]+=inputs[i];
     }
     delay(5);
   }
   
   
+  // average = sum / number of samples
 #if VERBOSE > 1
   Serial.print(samples);
   Serial.println(F(" white samples: "));
 #endif
-  for(i=0;i<NUM_INPUTS;++i) {
+  for(i=0;i<NUM_EYES;++i) {
     avg_white[i] = (float)avg_white[i] / (float)samples;
 #if VERBOSE > 1
   Serial.print(avg_white[i]);
@@ -162,31 +161,37 @@ void sample_white() {
 
 
 //------------------------------------------------------------------------------
-void sample_black() {
+void study_black() {
   int i;
+
+#if VERBOSE > 0
+  Serial.println(F("Move me so I can see only black..."));
+#endif
+  wait(WAIT_TIME);  // give user a moment to place robot
 
   digitalWrite(LED_PIN,HIGH);  // turn on light
 
 #if VERBOSE > 0
   Serial.println(F("Sampling black..."));
 #endif
-  memset(avg_black,0,sizeof(int)*NUM_INPUTS);
-  samples=0;
+  memset(avg_black,0,sizeof(int)*NUM_EYES);
+  int samples=0;
   long start=millis();
   while(millis()-start < 2000) {
     look();
     samples++;
-    for(i=0;i<NUM_INPUTS;++i) {
+    for(i=0;i<NUM_EYES;++i) {
       avg_black[i]+=inputs[i];
     }
     delay(5);
   }
-  
+
+  // average = sum / number of samples
 #if VERBOSE > 1
   Serial.print(samples);
   Serial.println(F(" black samples: "));
 #endif
-  for(i=0;i<NUM_INPUTS;++i) {
+  for(i=0;i<NUM_EYES;++i) {
     avg_black[i] = (float)avg_black[i] / (float)samples;
 #if VERBOSE > 1
   Serial.print(avg_black[i]);
@@ -202,13 +207,13 @@ void sample_black() {
 
 
 //------------------------------------------------------------------------------
-void setup_cutoffs() {
+void learn_difference() {
   int i;
   
 #if VERBOSE > 1
   Serial.println(F("cutoff: "));
 #endif
-  for(i=0;i<NUM_INPUTS;++i) {
+  for(i=0;i<NUM_EYES;++i) {
     cutoff[i] = ( avg_white[i] + avg_black[i] ) / 2.0f;
 #if VERBOSE > 1
   Serial.print(avg_black[i]);
@@ -223,18 +228,14 @@ void setup_cutoffs() {
 
 //------------------------------------------------------------------------------
 void loop() {
-  switch(mode) {
-  case MODE_FOLLOW:  follow();  break;
-  case MODE_EXPLORE:  explore();  break;
-  case MODE_SOLVE:  solve();  break;
-  }
+  follow();
 }
 
 
 //------------------------------------------------------------------------------
 void look() {
   int i;
-  for(i=0;i<NUM_INPUTS;++i) {
+  for(i=0;i<NUM_EYES;++i) {
     inputs[i] = analogRead(A1+i);
 #if VERBOSE > 2
     Serial.print(inputs[i]);
@@ -249,8 +250,8 @@ void look() {
 
 //------------------------------------------------------------------------------
 void steer(float forward,float turn) {
-  int a = LEFT_CENTER - forward + turn;
-  int b = RIGHT_CENTER + forward + turn;
+  int a = LEFT_NO_MOVE - forward + turn;
+  int b = RIGHT_NO_MOVE + forward + turn;
   
   if(a<10) a=10;  if(a>170) a=170;
   if(b<10) b=10;  if(b>170) b=170;
@@ -285,7 +286,7 @@ char eye_sees_black(int i) {
 //------------------------------------------------------------------------------
 char all_eyes_see_white() {
   int i;
-  for(i=0;i<NUM_INPUTS;++i) {
+  for(i=0;i<NUM_EYES;++i) {
     if(eye_sees_black(i)) return 0;  // eye doesn't see white, quit
   }
   
@@ -296,7 +297,7 @@ char all_eyes_see_white() {
 //------------------------------------------------------------------------------
 char all_eyes_see_black() {
   int i;
-  for(i=0;i<NUM_INPUTS;++i) {
+  for(i=0;i<NUM_EYES;++i) {
     if(eye_sees_white(i)) return 0;  // eye doesn't see black, quit
   }
   
@@ -320,76 +321,17 @@ void follow() {
   } else*/ {
     // follow line
     // go forward...
-    forward = 7;
+    forward = FORWARD_SPEED;
 
     // ...and steer
     turn = 0;
     if(!eye_sees_white(EYE_LEFT) || !eye_sees_white(EYE_FAR_LEFT)) {
       // left eye sees
-      turn+=5;
+      turn+=TURN_SPEED;
     }
     if(!eye_sees_white(EYE_RIGHT) || !eye_sees_white(EYE_FAR_RIGHT)) {
-      turn-=5;
+      turn-=TURN_SPEED;
     }
-  }
-  
-  steer(forward,turn);
-}
-
-
-//------------------------------------------------------------------------------
-void explore() {
-  float forward=0, turn=0;
-  
-  look();
-  
-  if(all_eyes_see_black()) {
-    victory();
-  }
-  // what kind of intersection have we found?
-  if(eye_sees_black(EYE_FAR_RIGHT)) {
-    if(eye_sees_black(EYE_FAR_LEFT)) {
-      // T intersection?
-      // @TODO: turn right and continue
-    } else {
-      // right hand turn
-      // @TODO: turn right and continue
-    }
-  } else if(eye_sees_black(EYE_FAR_LEFT)) {
-    // left hand turn
-    // @TODO: turn left and continue
-  } else if(all_eyes_see_white()) {
-    // we have left the track!  back up!
-    forward = -4;
-    turn = 0;
-  } else {
-    // follow line
-    // go forward...
-    forward = 7;
-
-    // ...and steer
-    turn = 0;
-    if(!eye_sees_white(EYE_LEFT) || !eye_sees_white(EYE_FAR_LEFT)) {
-      // left eye sees
-      turn+=5;
-    }
-    if(!eye_sees_white(EYE_RIGHT) || !eye_sees_white(EYE_FAR_RIGHT)) {
-      turn-=5;
-    }
-  }
-  
-  steer(forward,turn);
-}
-
-
-//------------------------------------------------------------------------------
-void solve() {
-  float forward=0, turn=0;
-  
-  look();
-  
-  if(all_eyes_see_black()) {
-    victory();
   }
   
   steer(forward,turn);

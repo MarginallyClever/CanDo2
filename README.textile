@@ -1,0 +1,38 @@
+#CanDo2
+
+A line following robot (that could be taught to solve a maze)
+
+##Notes
+
+
+##Prerequisites
+
+Arduino: http://arduino.cc/
+
+##More
+
+For the latest source code please visit http://www.github.com/MarginallyClever/CanDo2
+For the tutorial please visit http://learn.marginallyclever.com/index.php/CanDo2
+
+
+h1. CanDo2
+
+_A line following robot that may also solve mazes_
+
+h2. About
+
+CanDo 2 is the second version of Marginally Clever's line following robot.  It is intended to teach students about 
+programming, Arduino, servos, and electronics in a fun, goal-oriented way.
+
+h2. Get it
+
+Please visit "the CanDo homepage":https://www.marginallyclever.com/shop/more-robots/cando-2-line-follower for the accompanying hardware kit.
+
+h2. Get help
+
+Please visit "the forums":https://marginallyclever.com/forum 
+
+h2. See Also
+
+* "The CanDo2 homepage":https://www.marginallyclever.com/shop/more-robots/cando-2-line-follower
+* "The forums":https://marginallyclever.com/forum/
